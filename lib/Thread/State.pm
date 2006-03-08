@@ -1,0 +1,98 @@
+package Thread::State;
+
+use strict;
+use warnings;
+use threads ();
+
+our $VERSION = '0.01';
+
+require XSLoader;
+XSLoader::load('Thread::State', $VERSION);
+
+
+#################################################
+1;
+__END__
+
+=head1 NAME
+
+Thread::State -  check threads' state
+
+=head1 SYNOPSIS
+
+ use threads;
+ use Thread::State;
+ 
+ my $thr = threads->new(sub { ... });
+ 
+ while ( $thr->is_running ) {
+   ...
+ }
+ 
+ if ($thr->is_joined) {
+   ...
+ }
+ 
+ print threads->is_detached; # main thread is detached.
+
+=head1 DESCRIPTION
+
+This module adds some methods to threads which are used to check
+threads' state (is detached? joined? finished?).
+
+L<Thread::Running> is also for the same aim. It hacks threads::new,
+threads::join, and threads::detach. On the other hand,
+Thread::State peeks at the ithread structures directly.
+
+=head1 METHODS
+
+All below methods can be used as class methods. In that case,
+they return a current thread's state.
+
+=over 4
+
+=item is_running
+
+The thread is not finished.
+
+=item is_finished
+
+The thread is finished.
+
+=item is_joined
+
+The thread is joined.
+
+=item is_detached
+
+The thread is detached.
+
+=item is_joinable
+
+The thread is joinable (not joined, not detached).
+
+=back
+
+
+=head1 NOTE
+
+With Perl 5.8.0 on Windows, C<is_joined> and C<is_joinable> may not
+work correctly. This is the problem of threads itself.
+
+=head1 SEE ALSO
+
+L<Thread::Running>,
+L<threads>
+
+=head1 AUTHOR
+
+Makamaka Hannyaharamitu, E<lt>makamaka[at]donzoko.netE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2006 by Makamaka Hannyaharamitu
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
+
+=cut
