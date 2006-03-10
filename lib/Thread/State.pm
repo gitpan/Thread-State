@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use threads ();
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
@@ -23,10 +23,14 @@ Thread::State -  check threads' state
  use threads;
  use Thread::State;
  
- my $thr = threads->new(sub { ... });
+ my $thr  = threads->new(sub { ... });
  
  while ( $thr->is_running ) {
    ...
+ }
+ 
+ if( $thr->in_context ){ # = wantarray
+     ...
  }
  
  if ($thr->is_joined) {
@@ -38,7 +42,7 @@ Thread::State -  check threads' state
 =head1 DESCRIPTION
 
 This module adds some methods to threads which are used to check
-threads' state (is detached? joined? finished?).
+threads' state (is detached? joined? finished?) and created context.
 
 L<Thread::Running> is also for the same aim. It hacks threads::new,
 threads::join, and threads::detach. On the other hand,
@@ -70,6 +74,13 @@ The thread is detached.
 =item is_joinable
 
 The thread is joinable (not joined, not detached).
+
+=item in_context
+
+Returns the created context of the thread.
+As like C<wantarray>, if void context, returns C<undef>,
+list context is true value, and scalar context is false.
+
 
 =back
 

@@ -1,4 +1,7 @@
 
+0.02  Fri Mar 10 10:28:36 2006
+	- added in_context() which returns created context (like wantarray).
+
 0.01  Wed Mar  8 06:59:43 2006
 	- original version;
 

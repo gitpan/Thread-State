@@ -39,6 +39,7 @@ typedef struct ithread_s {
 #define state_is_detached(thread)  ithread_state_is_detached(aTHX_ thread)
 #define state_is_running(thread)   ithread_state_is_running(aTHX_ thread)
 #define state_is_joinable(thread)  ithread_state_is_joinable(aTHX_ thread)
+#define state_in_context(thread)   ithread_state_in_context(aTHX_ thread)
 
 
 ithread* Thread_State_get_ithread_580 (pTHX) {
@@ -54,6 +55,8 @@ ithread* Thread_State_get_ithread_580 (pTHX) {
     XPUSHs(sv_2mortal(newSVpv("threads", 0)));
     PUTBACK;
     count = call_method("self", G_SCALAR);
+
+    SPAGAIN;
 
     if (count != 1)
        croak("%s\n","Internal error, couldn't call thread->self");
@@ -83,9 +86,9 @@ ithread* Thread_State_get_ithread_581 (pTHX) {
 
 
 #if PERL_SUBVERSION < 1
-# define state_get_ithread(sv)    Thread_State_get_ithread_580(aTHX)
+# define STATE_GET_ITHREAD(sv)    Thread_State_get_ithread_580(aTHX)
 #else
-# define state_get_ithread(sv)    Thread_State_get_ithread_581(aTHX)
+# define STATE_GET_ITHREAD(sv)    Thread_State_get_ithread_581(aTHX)
 #endif
 
 
@@ -96,7 +99,7 @@ ithread* state_sv_to_ithread(pTHX_ SV *sv) {
         thread = INT2PTR(ithread*, SvIV(SvRV(sv)));
     }
     else {
-        thread = state_get_ithread(aTHX);
+        thread = STATE_GET_ITHREAD(aTHX);
     }
     return thread;
 }
@@ -138,6 +141,19 @@ int ithread_state_is_joinable (pTHX_ SV* sv) {
 }
 
 
+SV* ithread_state_in_context (pTHX_ SV* sv) {
+    ithread*  thread;
+    int       gimme;
+
+    thread = state_sv_to_ithread(aTHX_ sv);
+    gimme  = thread->gimme;
+
+    return   gimme & G_VOID  ? &PL_sv_undef
+           : gimme & G_ARRAY ? &PL_sv_yes
+           : &PL_sv_no;                    // but this isn't G_SCALAR?
+}
+
+
 #endif /* USE_ITHREADS */
 
 
@@ -167,6 +183,11 @@ state_is_joined (obj)
 int
 state_is_joinable (obj)
 	SV* obj
+
+SV*
+state_in_context (obj)
+	SV* obj
+
 
 #endif /* USE_ITHREADS */
 
