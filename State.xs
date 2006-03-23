@@ -61,7 +61,7 @@ typedef struct ithread_111_s {
 
 
 NV threads_version;   /* current used threads version */
-
+NV perl_version;      /* joined status for 5.8.0 Win32 */
 
 #define state_is_joined(thread)    ithread_state_is_joined(aTHX_ thread)
 #define state_is_finished(thread)  ithread_state_is_finished(aTHX_ thread)
@@ -70,7 +70,8 @@ NV threads_version;   /* current used threads version */
 #define state_is_joinable(thread)  ithread_state_is_joinable(aTHX_ thread)
 #define state_in_context(thread)   ithread_state_in_context(aTHX_ thread)
 
-#define ANOTHER_THREADS     threads_version > 1.09
+#define ANOTHER_THREADS     (threads_version > 1.09)
+#define JOIN_HAS_PROBLEM    (perl_version < 5.008001)
 
 #define ITHREAD_CORE        ((ithread*)thread)
 #define ITHREAD_CPAN        ((ithread2*)thread)
@@ -80,6 +81,8 @@ NV threads_version;   /* current used threads version */
           ithread2_state_is(aTHX_ sv, state)    \
         : ithread_state_is(aTHX_ sv, state)     \
     )                                           \
+
+#define FIX_580_JOINED(sv)   state_is_joined_fiexd_580 (aTHX_ sv)
 
 
 
@@ -141,6 +144,17 @@ int ithread2_state_is (pTHX_ SV* sv, int state) {
 }
 
 
+int state_is_joined_fiexd_580 (pTHX_ SV* sv) {
+    if( !ITHREAD_STATE_IS( PERL_ITHR_JOINED ) ){
+        void*  thread = state_sv_to_ithread(aTHX_ sv);
+        return (!((ithread*)thread)->interp) ? 1 : 0;
+    }
+    else {
+        return 1;
+    }
+}
+
+
 int ithread_state_is_running (pTHX_ SV* sv) {
     return ! ITHREAD_STATE_IS(PERL_ITHR_FINISHED);
 }
@@ -157,6 +171,9 @@ int ithread_state_is_detached (pTHX_ SV* sv) {
 
 
 int ithread_state_is_joined (pTHX_ SV* sv) {
+    if (JOIN_HAS_PROBLEM && !ANOTHER_THREADS) {
+        return FIX_580_JOINED(sv);
+    }
     return ITHREAD_STATE_IS( PERL_ITHR_JOINED );
 }
 
@@ -170,6 +187,12 @@ int ithread_state_is_joinable (pTHX_ SV* sv) {
                ) ? 1 : 0;
     }
     else {
+        if (JOIN_HAS_PROBLEM && !ANOTHER_THREADS) {
+            return (    !(ITHREAD_CORE->state & PERL_ITHR_DETACHED)
+                     && !FIX_580_JOINED(sv)
+                   ) ? 1 : 0;
+        }
+
         return (    !(ITHREAD_CORE->state & PERL_ITHR_DETACHED)
                  && !(ITHREAD_CORE->state & PERL_ITHR_JOINED)
                ) ? 1 : 0;
@@ -189,41 +212,6 @@ SV* ithread_state_in_context (pTHX_ SV* sv) {
            : &PL_sv_no  // but this isn't G_SCALAR?
     ;
 }
-
-
-NV _get_threads_VERSION ( pTHX ) {
-    int  count;
-    SV*  sv;
-    NV   ver;
-
-    dSP;
-
-    ENTER;
-    SAVETMPS;
-
-    PUSHMARK(SP);
-    XPUSHs(sv_2mortal(newSVpv("threads", 0)));
-    PUTBACK;
-    count = call_method("VERSION", G_SCALAR);
-
-    SPAGAIN;
-
-    if (count != 1)
-       croak("Big trouble\n");
-
-    sv = POPs;
-    if (SvOK(sv) && looks_like_number(sv)) {
-        ver = SvNV(sv);
-    }
-
-    PUTBACK;
-    FREETMPS;
-    LEAVE;
-
-    return ver;
-}
-
-
 
 #endif /* USE_ITHREADS */
 
@@ -267,14 +255,26 @@ BOOT:
     /* check threads VERSION for CPAN version */
 
     HV*  stash;
+    HV*  mains;
+    SV** svp;
+
     stash = gv_stashpv("threads", 0);
+    mains = gv_stashpv("main", 0);
+
+    svp   = hv_fetch(mains, "]", 1, 0);
+    if ( svp && SvNOK(GvSV(*svp)) ){
+        perl_version = SvNV(GvSV(*svp));
+    }
 
     if (stash) {
-        threads_version = _get_threads_VERSION(aTHX);
+        svp = hv_fetch(stash, "VERSION", 7, 0);
+        if ( svp && SvPOK(GvSV(*svp)) ){
+            threads_version = SvNV(GvSV(*svp));
+        }
     }
 
     if (!threads_version) {
-        croak("You must use threads before useing Thread::State.");
+        croak("You must use threads before using Thread::State.");
     }
 #endif /* USE_ITHREADS */
 }

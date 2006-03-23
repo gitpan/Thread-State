@@ -50,7 +50,7 @@ $thr->join;
 
 SKIP:
 {
-    skip "join does not work correctly in Perl 5.8.0", 2 unless($] >= 5.008001);
+#    skip "join does not work correctly in Perl 5.8.0", 2 unless($] >= 5.008001);
     ok(!$thr->is_joinable,  "thread 1 is not joinable");
     ok( $thr->is_joined  ,  "thread 1 is joined");
 }

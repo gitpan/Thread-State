@@ -1,3 +1,6 @@
+0.04  Thu Mar 23 11:42:28 2006
+	- fixed is_join() & is_joinable() on Win32 Perl5.8.0
+
 0.03  Sat Mar 18 07:33:03 2006
 	- modified for CPAN version threads (1.11)
 

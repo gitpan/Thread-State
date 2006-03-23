@@ -1,14 +1,12 @@
 package Thread::State;
-
+$| = 1;
 use strict;
 use warnings;
-use threads ();
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
-
 
 #################################################
 1;
@@ -47,6 +45,8 @@ threads' state (is detached? joined? finished?) and created context.
 L<Thread::Running> is also for the same aim. It hacks threads::new,
 threads::join, and threads::detach. On the other hand,
 Thread::State peeks at the ithread structures directly.
+
+You must use L<threads> before using Thread::State.
 
 =head1 METHODS
 
@@ -89,6 +89,8 @@ list context is true value, and scalar context is false.
 
 With Perl 5.8.0 on Windows, C<is_joined> and C<is_joinable> may not
 work correctly. This is the problem of threads itself.
+
+This problem was fixed by Thread::State 0.04.
 
 =head1 SEE ALSO
 
