@@ -1,3 +1,7 @@
+0.05  Sun Mar 26 21:48:06 2006
+	- added coderef method
+	- removed a useless line from State.pm
+
 0.04  Thu Mar 23 11:42:28 2006
 	- fixed is_join() & is_joinable() on Win32 Perl5.8.0
 

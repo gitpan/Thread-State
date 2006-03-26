@@ -1,9 +1,9 @@
 package Thread::State;
-$| = 1;
+
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
@@ -80,6 +80,13 @@ The thread is joinable (not joined, not detached).
 Returns the created context of the thread.
 As like C<wantarray>, if void context, returns C<undef>,
 list context is true value, and scalar context is false.
+
+=item coderef
+
+Returns the thread coderef which was passed into C<create> or C<new>.
+When a thread code is finished with L<threads> core version, the coderef
+refcount is made to 0 and destroyed. In that case C<coderef> method
+will return C<undef>.
 
 
 =back

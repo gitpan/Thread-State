@@ -63,12 +63,14 @@ typedef struct ithread_111_s {
 NV threads_version;   /* current used threads version */
 NV perl_version;      /* joined status for 5.8.0 Win32 */
 
-#define state_is_joined(thread)    ithread_state_is_joined(aTHX_ thread)
-#define state_is_finished(thread)  ithread_state_is_finished(aTHX_ thread)
-#define state_is_detached(thread)  ithread_state_is_detached(aTHX_ thread)
-#define state_is_running(thread)   ithread_state_is_running(aTHX_ thread)
-#define state_is_joinable(thread)  ithread_state_is_joinable(aTHX_ thread)
-#define state_in_context(thread)   ithread_state_in_context(aTHX_ thread)
+#define state_is_joined(thread)     ithread_state_is_joined(aTHX_ thread)
+#define state_is_finished(thread)   ithread_state_is_finished(aTHX_ thread)
+#define state_is_detached(thread)   ithread_state_is_detached(aTHX_ thread)
+#define state_is_running(thread)    ithread_state_is_running(aTHX_ thread)
+#define state_is_joinable(thread)   ithread_state_is_joinable(aTHX_ thread)
+#define state_in_context(thread)    ithread_state_in_context(aTHX_ thread)
+#define state_list_all(thread)      ithread_state_list_all(aTHX_ thread)
+#define state_coderef(thread)       ithread_state_coderef(aTHX_ thread)
 
 #define ANOTHER_THREADS     (threads_version > 1.09)
 #define JOIN_HAS_PROBLEM    (perl_version < 5.008001)
@@ -147,7 +149,7 @@ int ithread2_state_is (pTHX_ SV* sv, int state) {
 int state_is_joined_fiexd_580 (pTHX_ SV* sv) {
     if( !ITHREAD_STATE_IS( PERL_ITHR_JOINED ) ){
         void*  thread = state_sv_to_ithread(aTHX_ sv);
-        return (!((ithread*)thread)->interp) ? 1 : 0;
+        return !((ithread*)thread)->interp;
     }
     else {
         return 1;
@@ -182,20 +184,13 @@ int ithread_state_is_joinable (pTHX_ SV* sv) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
 
     if (ANOTHER_THREADS) {
-        return (    !(ITHREAD_CPAN->state & PERL_ITHR_DETACHED)
-                 && !(ITHREAD_CPAN->state & PERL_ITHR_JOINED)
-               ) ? 1 : 0;
+        return !(ITHREAD_CPAN->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
+    }
+    else if (JOIN_HAS_PROBLEM) {
+        return !((ITHREAD_CORE->state & PERL_ITHR_DETACHED) || FIX_580_JOINED(sv));
     }
     else {
-        if (JOIN_HAS_PROBLEM && !ANOTHER_THREADS) {
-            return (    !(ITHREAD_CORE->state & PERL_ITHR_DETACHED)
-                     && !FIX_580_JOINED(sv)
-                   ) ? 1 : 0;
-        }
-
-        return (    !(ITHREAD_CORE->state & PERL_ITHR_DETACHED)
-                 && !(ITHREAD_CORE->state & PERL_ITHR_JOINED)
-               ) ? 1 : 0;
+        return !(ITHREAD_CORE->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
     }
 }
 
@@ -211,6 +206,23 @@ SV* ithread_state_in_context (pTHX_ SV* sv) {
            : gimme & G_ARRAY ? &PL_sv_yes
            : &PL_sv_no  // but this isn't G_SCALAR?
     ;
+}
+
+
+SV* ithread_state_coderef (pTHX_ SV* sv) {
+    void*  thread  = state_sv_to_ithread(aTHX_ sv);
+    SV*    coderef = ANOTHER_THREADS
+                   ? ITHREAD_CPAN->init_function
+                   : ITHREAD_CORE->init_function
+    ;
+
+    if (coderef && SvREFCNT(coderef)) {
+        SvREFCNT_inc(coderef);
+        return coderef;
+    }
+    else {
+        return &PL_sv_undef;
+    }
 }
 
 #endif /* USE_ITHREADS */
@@ -246,6 +258,11 @@ state_is_joinable (obj)
 SV*
 state_in_context (obj)
 	SV* obj
+
+SV*
+state_coderef (obj)
+	SV* obj
+
 
 #endif /* USE_ITHREADS */
 
