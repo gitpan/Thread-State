@@ -6,6 +6,10 @@
 
 #ifdef USE_ITHREADS
 
+#ifndef WIN32
+    #include <pthread.h>
+#endif
+
 /* from threasd.xs  */
 
 /* Values for 'state' member */
@@ -71,6 +75,7 @@ NV perl_version;      /* joined status for 5.8.0 Win32 */
 #define state_in_context(thread)    ithread_state_in_context(aTHX_ thread)
 #define state_list_all(thread)      ithread_state_list_all(aTHX_ thread)
 #define state_coderef(thread)       ithread_state_coderef(aTHX_ thread)
+
 
 #define ANOTHER_THREADS     (threads_version > 1.09)
 #define JOIN_HAS_PROBLEM    (perl_version < 5.008001)
@@ -225,6 +230,79 @@ SV* ithread_state_coderef (pTHX_ SV* sv) {
     }
 }
 
+
+/* accessors to thread priority */
+
+SV* ithread_state_get_priority (pTHX_ SV* sv) {
+    void*  thread = state_sv_to_ithread(aTHX_ sv);
+#ifdef WIN32
+    HANDLE thr = ANOTHER_THREADS ? ITHREAD_CPAN->handle : ITHREAD_CORE->handle;
+
+    if (thr) {
+        int priority = GetThreadPriority(thr);
+        if (priority == THREAD_PRIORITY_ERROR_RETURN){
+            return &PL_sv_undef;
+        }
+        return newSViv(priority);
+    }
+    else {
+        return &PL_sv_undef;
+    }
+#else
+    struct sched_param param;
+    int  policy;
+    int  priority;
+
+    pthread_t thr = ANOTHER_THREADS ? ITHREAD_CPAN->thr : ITHREAD_CORE->thr;
+
+    if ( pthread_getschedparam(thr, &policy, &param) ){
+        return &PL_sv_undef;
+    }
+    return newSViv(param.sched_priority);
+#endif
+}
+
+
+SV* ithread_state_set_priority (pTHX_ SV* sv, int priority) {
+    void*  thread = state_sv_to_ithread(aTHX_ sv);
+    int    old_p;
+#ifdef WIN32
+    HANDLE thr = ANOTHER_THREADS ? ITHREAD_CPAN->handle : ITHREAD_CORE->handle;
+
+    if (thr) {
+        old_p = GetThreadPriority(thr);
+        if ( SetThreadPriority(thr, priority) ){
+            return newSViv(old_p);
+        }
+        else {
+            return &PL_sv_undef;
+        }
+    }
+    else {
+        return &PL_sv_undef;
+    }
+#else
+    struct sched_param param;
+    int  policy;
+
+    pthread_t thr = ANOTHER_THREADS ? ITHREAD_CPAN->thr : ITHREAD_CORE->thr;
+
+    if ( pthread_getschedparam(thr, &policy, &param) ) {
+        return &PL_sv_undef;
+    }
+
+    old_p = param.sched_priority;
+
+    param.sched_priority = priority;
+
+    if (pthread_setschedparam(thr, policy, &param)) {
+        return &PL_sv_undef;
+    }
+    return newSViv(old_p);
+#endif
+}
+
+
 #endif /* USE_ITHREADS */
 
 
@@ -262,6 +340,24 @@ state_in_context (obj)
 SV*
 state_coderef (obj)
 	SV* obj
+
+SV*
+state_priority (obj, ...)
+	SV* obj
+PREINIT:
+    int priority;
+    SV* ret;
+CODE:
+    if (items > 1) {
+        priority = SvIV(ST(1));
+        ret      = ithread_state_set_priority(aTHX_ obj, priority);
+    }
+    else {
+        ret = ithread_state_get_priority(aTHX_ obj);
+    }
+    RETVAL = ret;
+OUTPUT:
+    RETVAL
 
 
 #endif /* USE_ITHREADS */

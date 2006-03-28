@@ -1,8 +1,9 @@
-Thread-Stateb version 0.05
+Thread-Stateb version 0.06
 =======================
 
 This module adds some methods to threads which are used to check
-threads' state (is detached? joined? finished?) and created context.
+threads' state (is detached? joined? finished?), created context,
+code reference(start function) and thread priority.
 
 
 INSTALLATION

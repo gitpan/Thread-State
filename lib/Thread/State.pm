@@ -3,7 +3,7 @@ package Thread::State;
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
@@ -14,7 +14,7 @@ __END__
 
 =head1 NAME
 
-Thread::State -  check threads' state
+Thread::State -  check threads state, context, priority
 
 =head1 SYNOPSIS
 
@@ -37,10 +37,19 @@ Thread::State -  check threads' state
  
  print threads->is_detached; # main thread is detached.
 
+ ...
+
+ # get thread priority
+ my $priority = $thr->priority;
+ # set thread priority (WIN32 thread only)
+ $thr->priority(2);
+
+
 =head1 DESCRIPTION
 
 This module adds some methods to threads which are used to check
-threads' state (is detached? joined? finished?) and created context.
+threads' state (is detached? joined? finished?) and created context,
+code reference(start function) and thread priority.
 
 L<Thread::Running> is also for the same aim. It hacks threads::new,
 threads::join, and threads::detach. On the other hand,
@@ -88,6 +97,18 @@ When a thread code is finished with L<threads> core version, the coderef
 refcount is made to 0 and destroyed. In that case C<coderef> method
 will return C<undef>.
 
+=item priority
+
+=item priority($int)
+
+Note: This method is experimental and may be removed.
+
+Returns the thread priority. You can pass the integer to set new priority
+(the old priority is returned).
+But setting priority will be meaningful on Win32 machine, because
+to pthread implemented ithread, only 0 is acceptable.
+
+When method fails in setting/getting priority, returns C<undef>.
 
 =back
 
