@@ -1,3 +1,8 @@
+
+0.07  Tue Apr 25 13:54:53 2006
+	- modified ithreads type for CPAN threads version 1.23
+	  (Now can't use this module under CPAN threads 1.11 - 1.22)
+
 0.06  Tue Mar 28 11:20:52 2006
 	- added an accessor to thread priority
 

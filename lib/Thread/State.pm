@@ -3,7 +3,7 @@ package Thread::State;
 use strict;
 use warnings;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
@@ -56,6 +56,9 @@ threads::join, and threads::detach. On the other hand,
 Thread::State peeks at the ithread structures directly.
 
 You must use L<threads> before using Thread::State.
+
+This module requires  Perl core threads (<= 1.07) or
+CPAN threads (>= 1.23).
 
 =head1 METHODS
 

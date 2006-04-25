@@ -12,14 +12,14 @@
 
 /* from threasd.xs  */
 
-/* Values for 'state' member */
+/* Values for 'state' member (CPAN threads) */
 #define PERL_ITHR_JOINABLE      0
 #define PERL_ITHR_DETACHED      1
 #define PERL_ITHR_JOINED        2
 #define PERL_ITHR_FINISHED      4
 
 
-/* perl core threads */
+/* perl core threads <= 5.8.8 */
 typedef struct ithread_s {
     struct ithread_s *next;	/* Next thread in the list */
     struct ithread_s *prev;	/* Prev thread in the list */
@@ -40,15 +40,16 @@ typedef struct ithread_s {
 } ithread;
 
 
-/* From CPAN threads 1.11 */
-typedef struct ithread_111_s {
-    struct ithread_111_s *next;     /* Next thread in the list */
-    struct ithread_111_s *prev;     /* Prev thread in the list */
+/* From CPAN threads 1.11 >>>> this typedef was removed */
+
+/* From CPAN threads 1.23 */
+typedef struct _ithread {
+    struct _ithread *next;      /* Next thread in the list */
+    struct _ithread *prev;      /* Prev thread in the list */
     PerlInterpreter *interp;    /* The threads interpreter */
-    PerlInterpreter *free_interp;
     UV tid;                     /* Threads module's thread id */
     perl_mutex mutex;           /* Mutex for updating things in this struct */
-    UV count;                   /* How many SVs have a reference to us */
+    int count;                  /* How many SVs have a reference to us */
     int state;                  /* Detached, joined, finished, etc. */
     int gimme;                  /* Context of create */
     SV *init_function;          /* Code to run */
@@ -59,7 +60,7 @@ typedef struct ithread_111_s {
 #else
     pthread_t thr;              /* OS's handle for the thread */
 #endif
-    UV stack_size;
+    IV stack_size;
 } ithread2;
 
 
@@ -77,7 +78,7 @@ NV perl_version;      /* joined status for 5.8.0 Win32 */
 #define state_coderef(thread)       ithread_state_coderef(aTHX_ thread)
 
 
-#define ANOTHER_THREADS     (threads_version > 1.09)
+#define ANOTHER_THREADS     (threads_version > 1.23)
 #define JOIN_HAS_PROBLEM    (perl_version < 5.008001)
 
 #define ITHREAD_CORE        ((ithread*)thread)
@@ -381,13 +382,16 @@ BOOT:
 
     if (stash) {
         svp = hv_fetch(stash, "VERSION", 7, 0);
-        if ( svp && SvPOK(GvSV(*svp)) ){
+        if ( svp && SvOK(GvSV(*svp)) ){
             threads_version = SvNV(GvSV(*svp));
         }
     }
 
     if (!threads_version) {
         croak("You must use threads before using Thread::State.");
+    }
+    else if (threads_version > 1.07 && threads_version < 1.23) {
+        croak("Thread::State requires CORE threads or CPAN threads >= 1.23.");
     }
 #endif /* USE_ITHREADS */
 }
