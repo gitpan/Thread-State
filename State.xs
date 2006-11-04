@@ -70,22 +70,23 @@ NV perl_version;      /* joined status for 5.8.0 Win32 */
 
 #define state_is_joined(thread)     ithread_state_is_joined(aTHX_ thread)
 #define state_is_finished(thread)   ithread_state_is_finished(aTHX_ thread)
-#define state_is_detached(thread)   ithread_state_is_detached(aTHX_ thread)
-#define state_is_running(thread)    ithread_state_is_running(aTHX_ thread)
-#define state_is_joinable(thread)   ithread_state_is_joinable(aTHX_ thread)
-#define state_in_context(thread)    ithread_state_in_context(aTHX_ thread)
-#define state_list_all(thread)      ithread_state_list_all(aTHX_ thread)
+#define state__is_detached(thread)  ithread_state_is_detached(aTHX_ thread)
+#define state__is_running(thread)   ithread_state_is_running(aTHX_ thread)
+#define state__is_joinable(thread)  ithread_state_is_joinable(aTHX_ thread)
+#define state__wantarray(thread)    ithread_state_wantarray(aTHX_ thread)
 #define state_coderef(thread)       ithread_state_coderef(aTHX_ thread)
+#define state_is_not_joined_nor_detached(thread) \
+	                                ithread_state_is_not_joined_nor_detached(aTHX_ thread)
 
 
-#define ANOTHER_THREADS     (threads_version > 1.23)
+#define THREADS_IS_NEW      (threads_version > 1.23)
 #define JOIN_HAS_PROBLEM    (perl_version < 5.008001)
 
-#define ITHREAD_CORE        ((ithread*)thread)
-#define ITHREAD_CPAN        ((ithread2*)thread)
+#define ITHREAD_OLD         ((ithread*)thread)
+#define ITHREAD_NEW         ((ithread2*)thread)
 
 #define ITHREAD_STATE_IS( state )               \
-    (ANOTHER_THREADS ?                          \
+    (THREADS_IS_NEW ?                           \
           ithread2_state_is(aTHX_ sv, state)    \
         : ithread_state_is(aTHX_ sv, state)     \
     )                                           \
@@ -115,7 +116,7 @@ void* state_get_current_ithread (pTHX) {
 
     thr_sv = POPs;
 
-    if (ANOTHER_THREADS) {
+    if (THREADS_IS_NEW) {
         thread = (void*)(INT2PTR(ithread2*, SvIV(SvRV(thr_sv))));
     }
     else {
@@ -132,7 +133,7 @@ void* state_get_current_ithread (pTHX) {
 
 void* state_sv_to_ithread(pTHX_ SV *sv) {
     void* thread = !SvROK(sv) ? state_get_current_ithread(aTHX) :
-                    ANOTHER_THREADS ?
+                    THREADS_IS_NEW ?
                            (void*)INT2PTR(ithread2*, SvIV(SvRV(sv)))
                          : (void*)INT2PTR(ithread*, SvIV(SvRV(sv)))
     ;
@@ -142,13 +143,13 @@ void* state_sv_to_ithread(pTHX_ SV *sv) {
 
 int ithread_state_is (pTHX_ SV* sv, signed char state) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
-    return (ITHREAD_CORE->state & state) ? 1 : 0;
+    return (ITHREAD_OLD->state & state) ? 1 : 0;
 }
 
 
 int ithread2_state_is (pTHX_ SV* sv, int state) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
-    return (ITHREAD_CPAN->state & state) ? 1 : 0;
+    return (ITHREAD_NEW->state & state) ? 1 : 0;
 }
 
 
@@ -179,7 +180,7 @@ int ithread_state_is_detached (pTHX_ SV* sv) {
 
 
 int ithread_state_is_joined (pTHX_ SV* sv) {
-    if (JOIN_HAS_PROBLEM && !ANOTHER_THREADS) {
+    if (JOIN_HAS_PROBLEM && !THREADS_IS_NEW) {
         return FIX_580_JOINED(sv);
     }
     return ITHREAD_STATE_IS( PERL_ITHR_JOINED );
@@ -189,23 +190,41 @@ int ithread_state_is_joined (pTHX_ SV* sv) {
 int ithread_state_is_joinable (pTHX_ SV* sv) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
 
-    if (ANOTHER_THREADS) {
-        return !(ITHREAD_CPAN->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
+    if (THREADS_IS_NEW) {
+        return ( (ITHREAD_NEW->state & PERL_ITHR_FINISHED)
+        			 && !(ITHREAD_NEW->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED)) );
     }
     else if (JOIN_HAS_PROBLEM) {
-        return !((ITHREAD_CORE->state & PERL_ITHR_DETACHED) || FIX_580_JOINED(sv));
+        return ( (ITHREAD_OLD->state & PERL_ITHR_FINISHED)
+        			&& !((ITHREAD_OLD->state & PERL_ITHR_DETACHED) || FIX_580_JOINED(sv)) );
     }
     else {
-        return !(ITHREAD_CORE->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
+        return ( (ITHREAD_OLD->state & PERL_ITHR_FINISHED)
+                     && !(ITHREAD_OLD->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED)) );
     }
 }
 
 
-SV* ithread_state_in_context (pTHX_ SV* sv) {
+int ithread_state_is_not_joined_nor_detached (pTHX_ SV* sv) {
+    void*  thread = state_sv_to_ithread(aTHX_ sv);
+
+    if (THREADS_IS_NEW) {
+        return !(ITHREAD_NEW->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
+    }
+    else if (JOIN_HAS_PROBLEM) {
+        return !((ITHREAD_OLD->state & PERL_ITHR_DETACHED) || FIX_580_JOINED(sv));
+    }
+    else {
+        return !(ITHREAD_OLD->state & (PERL_ITHR_DETACHED|PERL_ITHR_JOINED));
+    }
+}
+
+
+SV* ithread_state_wantarray (pTHX_ SV* sv) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
     int    gimme
-              = ANOTHER_THREADS ? ITHREAD_CPAN->gimme
-                                : ITHREAD_CORE->gimme
+              = THREADS_IS_NEW ? ITHREAD_NEW->gimme
+                             : ITHREAD_OLD->gimme
     ;
 
     return   gimme & G_VOID  ? &PL_sv_undef
@@ -217,9 +236,9 @@ SV* ithread_state_in_context (pTHX_ SV* sv) {
 
 SV* ithread_state_coderef (pTHX_ SV* sv) {
     void*  thread  = state_sv_to_ithread(aTHX_ sv);
-    SV*    coderef = ANOTHER_THREADS
-                   ? ITHREAD_CPAN->init_function
-                   : ITHREAD_CORE->init_function
+    SV*    coderef = THREADS_IS_NEW
+                   ? ITHREAD_NEW->init_function
+                   : ITHREAD_OLD->init_function
     ;
 
     if (coderef && SvREFCNT(coderef)) {
@@ -237,7 +256,7 @@ SV* ithread_state_coderef (pTHX_ SV* sv) {
 SV* ithread_state_get_priority (pTHX_ SV* sv) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
 #ifdef WIN32
-    HANDLE thr = ANOTHER_THREADS ? ITHREAD_CPAN->handle : ITHREAD_CORE->handle;
+    HANDLE thr = THREADS_IS_NEW ? ITHREAD_NEW->handle : ITHREAD_OLD->handle;
 
     if (thr) {
         int priority = GetThreadPriority(thr);
@@ -254,7 +273,7 @@ SV* ithread_state_get_priority (pTHX_ SV* sv) {
     int  policy;
     int  priority;
 
-    pthread_t thr = ANOTHER_THREADS ? ITHREAD_CPAN->thr : ITHREAD_CORE->thr;
+    pthread_t thr = THREADS_IS_NEW ? ITHREAD_NEW->thr : ITHREAD_OLD->thr;
 
     if ( pthread_getschedparam(thr, &policy, &param) ){
         return &PL_sv_undef;
@@ -268,7 +287,7 @@ SV* ithread_state_set_priority (pTHX_ SV* sv, int priority) {
     void*  thread = state_sv_to_ithread(aTHX_ sv);
     int    old_p;
 #ifdef WIN32
-    HANDLE thr = ANOTHER_THREADS ? ITHREAD_CPAN->handle : ITHREAD_CORE->handle;
+    HANDLE thr = THREADS_IS_NEW ? ITHREAD_NEW->handle : ITHREAD_OLD->handle;
 
     if (thr) {
         old_p = GetThreadPriority(thr);
@@ -286,7 +305,7 @@ SV* ithread_state_set_priority (pTHX_ SV* sv, int priority) {
     struct sched_param param;
     int  policy;
 
-    pthread_t thr = ANOTHER_THREADS ? ITHREAD_CPAN->thr : ITHREAD_CORE->thr;
+    pthread_t thr = THREADS_IS_NEW ? ITHREAD_NEW->thr : ITHREAD_OLD->thr;
 
     if ( pthread_getschedparam(thr, &policy, &param) ) {
         return &PL_sv_undef;
@@ -315,7 +334,7 @@ PROTOTYPES: DISABLE
 #ifdef USE_ITHREADS
 
 int
-state_is_running (obj)
+state__is_running (obj)
 	SV* obj
 
 int
@@ -323,7 +342,7 @@ state_is_finished (obj)
 	SV* obj
 
 int
-state_is_detached (obj)
+state__is_detached (obj)
 	SV* obj
 
 int
@@ -331,11 +350,15 @@ state_is_joined (obj)
 	SV* obj
 
 int
-state_is_joinable (obj)
+state__is_joinable (obj)
+	SV* obj
+
+int
+state_is_not_joined_nor_detached (obj)
 	SV* obj
 
 SV*
-state_in_context (obj)
+state__wantarray (obj)
 	SV* obj
 
 SV*
@@ -391,8 +414,7 @@ BOOT:
         croak("You must use threads before using Thread::State.");
     }
     else if (threads_version > 1.07 && threads_version < 1.23) {
-        croak("Thread::State requires CORE threads or CPAN threads >= 1.23.");
+        croak("Thread::State requires CORE threads or CPAN threads version >= 1.23.");
     }
 #endif /* USE_ITHREADS */
 }
-

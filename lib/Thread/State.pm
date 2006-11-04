@@ -3,10 +3,22 @@ package Thread::State;
 use strict;
 use warnings;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 require XSLoader;
 XSLoader::load('Thread::State', $VERSION);
+
+BEGIN {
+    if (threads->VERSION < 1.34) {
+        *threads::is_running  = *threads::_is_running;
+        *threads::is_detached = *threads::_is_detached;
+        *threads::is_joinable = *threads::_is_joinable;
+        *threads::wantarray   = *threads::_wantarray;
+    }
+
+    *threads::in_context = *threads::wantarray; # for old version
+}
+
 
 #################################################
 1;
@@ -27,13 +39,22 @@ Thread::State -  check threads state, context, priority
    ...
  }
  
- if( $thr->in_context ){ # = wantarray
+ if( $thr->wantarray ){
      ...
  }
  
  if ($thr->is_joined) {
    ...
  }
+
+ if ($thr->is_joinable) {
+   ...
+ }
+
+ if ($thr->is_not_joined_or_detached) { # until version 0.07, this method was is_joinable().
+   ...
+ }
+
  
  print threads->is_detached; # main thread is detached.
 
@@ -46,6 +67,15 @@ Thread::State -  check threads state, context, priority
 
 
 =head1 DESCRIPTION
+
+**************************** CAUTION ********************************
+
+Since CPAN threads version 1.34, threads module has some new methods
+which are offered by Thread::State:
+C<is_running>, C<is_detached>, C<is_joinable> and C<wantarray>.
+On such a version, you can still use this module.
+
+*********************************************************************
 
 This module adds some methods to threads which are used to check
 threads' state (is detached? joined? finished?) and created context,
@@ -85,13 +115,20 @@ The thread is detached.
 
 =item is_joinable
 
-The thread is joinable (not joined, not detached).
+The thread is joinable (not joined, not detached and already finished).
+This behavior was changed in Thread::State 0.08 and previous method is
+C<is_not_joined_nor_detached>;
 
-=item in_context
+=item is_not_joined_nor_detached
+
+The thread is joinable (not joined, not detached) but might not finished yet.
+
+=item wantarray
 
 Returns the created context of the thread.
 As like C<wantarray>, if void context, returns C<undef>,
 list context is true value, and scalar context is false.
+C<in_context> is alias to this method.
 
 =item coderef
 

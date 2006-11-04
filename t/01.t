@@ -8,7 +8,7 @@ BEGIN {
         require threads;
         threads->import;
         require Test::More;
-        Test::More->import( tests => 38 );
+        Test::More->import( tests => 40 );
     }
     else {
         require Test::More;
@@ -30,8 +30,10 @@ my $thr = threads->new(sub{
     ok(!threads->is_detached, "thread 1 is not detached in itself");
     ok( threads->is_running , "thread 1 is running in itself");
     ok(!threads->is_finished, "thread 1 is not finished in itself");
-    ok( threads->is_joinable, "thread 1 is joinable in itself");
+    ok(!threads->is_joinable, "thread 1 is not joinable in itself");
     ok(!threads->is_joined,   "thread 1 is not joined in itself");
+    ok( threads->is_not_joined_nor_detached(),
+                              "thread 1 is not joined nor detached in itself");
 });
 
 sleep 1;
@@ -60,8 +62,10 @@ $thr = threads->new(sub{
     ok(!threads->is_detached, "thread 2 is not detached in itself");
     ok( threads->is_running , "thread 2 is running in itself");
     ok(!threads->is_finished, "thread 2 is not finished in itself");
-    ok( threads->is_joinable, "thread 2 is joinable in itself");
+    ok(!threads->is_joinable, "thread 2 is not joinable in itself");
     ok(!threads->is_joined,   "thread 2 is not joined in itself");
+    ok( threads->is_not_joined_nor_detached(),
+                              "thread 2 is not joined nor detached in itself");
 });
 
 sleep 2;
