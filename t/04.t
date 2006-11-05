@@ -20,9 +20,10 @@ BEGIN {
 use_ok('Thread::State');
 
 my $thr = threads->new(sub{ sleep 1; });
+my $pri = $thr->priority;
 
-is($thr->priority, 0);
-is($thr->priority(0), 0);
+like($pri, qr/\d+/, "get priority");
+is($thr->priority(0), $pri, "set priority");
 
 for (threads->list){
     $_->join;

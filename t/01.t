@@ -2,7 +2,6 @@ use warnings;
 use strict;
 use Config;
 
-
 BEGIN {
     if ($Config{'useithreads'}) {
         require threads;
@@ -19,18 +18,52 @@ BEGIN {
 
 use_ok('Thread::State');
 
+my $threads_version = threads->VERSION;
+
 ok( threads->is_detached, "main thread is detached");
-ok( threads->is_running , "main thread is running");
+
+SKIP:
+{
+    skip "more than threads 1.34, can't use threads->is_running", 1
+                                    if($threads_version >= 1.34);
+   ok( threads->is_running , "main thread is running");
+}
+
 ok(!threads->is_finished, "main thread is not finished");
-ok(!threads->is_joinable, "main thread is not joinable");
+
+SKIP:
+{
+    skip "more than threads 1.34, can't use threads->is_joinable", 1
+                                    if($threads_version >= 1.34);
+    ok(!threads->is_joinable, "main thread is not joinable");
+}
+
+
 ok(!threads->is_joined  , "main thread is not joined");
+
+
 
 my $thr = threads->new(sub{
     is(threads->tid, 1, "new thread tid 1");
     ok(!threads->is_detached, "thread 1 is not detached in itself");
-    ok( threads->is_running , "thread 1 is running in itself");
+
+    SKIP:
+    {
+        skip "more than threads 1.34, can't use threads->is_running", 1
+                                    if($threads_version >= 1.34);
+       ok( threads->is_running , "thread 1 is running in itself");
+    }
+
     ok(!threads->is_finished, "thread 1 is not finished in itself");
-    ok(!threads->is_joinable, "thread 1 is not joinable in itself");
+
+    SKIP:
+    {
+        skip "more than threads 1.34, can't use threads->is_joinable", 1
+                                    if($threads_version >= 1.34);
+        ok(!threads->is_joinable, "thread 1 is not joinable in itself");
+    }
+
+
     ok(!threads->is_joined,   "thread 1 is not joined in itself");
     ok( threads->is_not_joined_nor_detached(),
                               "thread 1 is not joined nor detached in itself");
@@ -60,9 +93,23 @@ SKIP:
 $thr = threads->new(sub{
     is(threads->tid, 2, "new thread tid 2");
     ok(!threads->is_detached, "thread 2 is not detached in itself");
-    ok( threads->is_running , "thread 2 is running in itself");
+
+    SKIP:
+    {
+        skip "more than threads 1.34, can't use threads->is_running", 1
+                                    if($threads_version >= 1.34);
+       ok( threads->is_running , "thread 2 is running in itself");
+    }
+
     ok(!threads->is_finished, "thread 2 is not finished in itself");
-    ok(!threads->is_joinable, "thread 2 is not joinable in itself");
+
+    SKIP:
+    {
+        skip "more than threads 1.34, can't use threads->is_joinable", 1
+                                    if($threads_version >= 1.34);
+        ok(!threads->is_joinable, "thread 2 is not joinable in itself");
+    }
+
     ok(!threads->is_joined,   "thread 2 is not joined in itself");
     ok( threads->is_not_joined_nor_detached(),
                               "thread 2 is not joined nor detached in itself");
